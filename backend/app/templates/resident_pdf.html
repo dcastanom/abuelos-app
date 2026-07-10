@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4; margin: 1.2cm 1.5cm; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, Helvetica, sans-serif; font-size: 9pt; color: #111; line-height: 1.35; }
+
+h1 { font-size: 13pt; text-align: center; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; }
+.doc-meta { text-align: center; font-size: 8pt; color: #555; margin-bottom: 10px; }
+
+.section { margin-bottom: 8px; border: 1px solid #bbb; page-break-inside: avoid; }
+.section-title { background: #2d7d78; color: #fff; padding: 3px 7px; font-size: 8.5pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+.fields { padding: 6px 7px; }
+
+.row { display: flex; gap: 8px; margin-bottom: 5px; }
+.row:last-child { margin-bottom: 0; }
+.f { flex: 1; min-width: 0; }
+.f2 { flex: 2; min-width: 0; }
+.f3 { flex: 3; min-width: 0; }
+.fl { font-size: 7pt; color: #666; }
+.fv { font-size: 8.5pt; border-bottom: 1px solid #ddd; padding-bottom: 1px; min-height: 12px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 8pt; margin-top: 5px; }
+th { background: #e8f4f3; text-align: left; padding: 2px 5px; border: 1px solid #b5d9d7; font-size: 7.5pt; }
+td { padding: 2px 5px; border: 1px solid #ddd; vertical-align: top; }
+
+.tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px; }
+.tag { background: #e8f4f3; border: 1px solid #9dd0cd; border-radius: 3px; padding: 0 4px; font-size: 7.5pt; }
+
+.sub-title { font-size: 8pt; font-weight: bold; margin: 7px 0 2px; }
+
+.footer { margin-top: 24px; display: flex; justify-content: space-between; font-size: 7.5pt; color: #777; }
+.sig-line { border-top: 1px solid #888; width: 180px; padding-top: 3px; text-align: center; }
+</style>
+</head>
+<body>
+
+{% set mb = r.get('medical_background') or {} %}
+{% set bm = mb.get('basic_measures') or {} %}
+{% set fa = r.get('functional_assessment') or {} %}
+{% set guardians = r.get('guardians') or [] %}
+{% set active_dx = (mb.get('diagnoses') or []) | selectattr('has_it', 'equalto', true) | list %}
+{% set meds = mb.get('current_medications') or [] %}
+{% set lab_tests = mb.get('laboratory_tests') or [] %}
+{% set pathologies = mb.get('pathologies') or [] %}
+{% set habits = mb.get('habits') or [] %}
+
+<h1>Ficha Gerontológica</h1>
+<p class="doc-meta">Registro N.º {{ r.id }} &nbsp;·&nbsp; Fecha de ingreso: {{ r.get('registration_date') | fmtdate }}</p>
+
+<!-- Registro e Ingreso -->
+<div class="section">
+  <div class="section-title">Registro e Ingreso</div>
+  <div class="fields">
+    <div class="row">
+      <div class="f"><div class="fl">Habitación</div><div class="fv">{{ r.get('room_number') or '—' }}</div></div>
+      <div class="f3"><div class="fl">Motivo de ingreso</div><div class="fv">{{ r.get('admission_reason') or '—' }}</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Datos Personales -->
+<div class="section">
+  <div class="section-title">Datos Personales</div>
+  <div class="fields">
+    <div class="row">
+      <div class="f3"><div class="fl">Nombre completo</div><div class="fv"><strong>{{ r.get('full_name') or '—' }}</strong></div></div>
+      <div class="f"><div class="fl">Tipo ID</div><div class="fv">{{ r.get('id_type') or '—' }}</div></div>
+      <div class="f"><div class="fl">Número ID</div><div class="fv">{{ r.get('id_number') or '—' }}</div></div>
+    </div>
+    <div class="row">
+      <div class="f"><div class="fl">Fecha de nacimiento</div><div class="fv">{{ r.get('birth_date') | fmtdate }}</div></div>
+      <div class="f"><div class="fl">País de nacimiento</div><div class="fv">{{ r.get('birth_country') or '—' }}</div></div>
+      <div class="f"><div class="fl">Ciudad de nacimiento</div><div class="fv">{{ r.get('birth_place') or '—' }}</div></div>
+      <div class="f"><div class="fl">Género</div><div class="fv">{{ r.get('gender') or '—' }}</div></div>
+      <div class="f"><div class="fl">Estado civil</div><div class="fv">{{ r.get('civil_status') or '—' }}</div></div>
+    </div>
+    <div class="row">
+      <div class="f"><div class="fl">Religión</div><div class="fv">{{ r.get('religion') or '—' }}</div></div>
+      <div class="f2"><div class="fl">Dirección</div><div class="fv">{{ r.get('address') or '—' }}</div></div>
+      <div class="f"><div class="fl">Teléfono</div><div class="fv">{{ r.get('phone') or '—' }}</div></div>
+      <div class="f"><div class="fl">Nivel educativo</div><div class="fv">{{ r.get('education_level') or '—' }}</div></div>
+    </div>
+    <div class="row">
+      <div class="f"><div class="fl">Ocupación</div><div class="fv">{{ r.get('occupation') or '—' }}</div></div>
+      <div class="f"><div class="fl">Sistema SS</div><div class="fv">{{ r.get('social_security_system') or '—' }}</div></div>
+      <div class="f"><div class="fl">Entidad SS</div><div class="fv">{{ r.get('social_security_company') or '—' }}</div></div>
+      <div class="f"><div class="fl">Servicio funerario</div><div class="fv">
+        {% if r.get('has_funeral_service') == 'si' %}Sí — {{ r.get('funeral_service_name') or '' }}{% elif r.get('has_funeral_service') == 'no' %}No{% else %}—{% endif %}
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Acudientes -->
+{% if guardians %}
+<div class="section">
+  <div class="section-title">Acudientes / Responsables</div>
+  <div class="fields">
+    <table>
+      <thead><tr><th>Nombre</th><th>Parentesco</th><th>Teléfono</th></tr></thead>
+      <tbody>
+        {% for g in guardians %}
+        <tr>
+          <td>{{ g.get('name') or '—' }}</td>
+          <td>{{ g.get('relationship') or '—' }}</td>
+          <td>{{ g.get('phone') or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Datos Familiares -->
+<div class="section">
+  <div class="section-title">Datos Familiares</div>
+  <div class="fields">
+    <div class="row">
+      <div class="f"><div class="fl">N.º de hijos</div><div class="fv">{{ r.get('children_number') if r.get('children_number') is not none else '—' }}</div></div>
+      <div class="f"><div class="fl">Varones</div><div class="fv">{{ r.get('male_children_number') if r.get('male_children_number') is not none else '—' }}</div></div>
+      <div class="f"><div class="fl">Mujeres</div><div class="fv">{{ r.get('female_children_number') if r.get('female_children_number') is not none else '—' }}</div></div>
+      <div class="f2"><div class="fl">Dirección de los hijos</div><div class="fv">{{ r.get('children_address') or '—' }}</div></div>
+      <div class="f"><div class="fl">Teléfono de los hijos</div><div class="fv">{{ r.get('children_phone') or '—' }}</div></div>
+    </div>
+    <div class="row">
+      <div class="f"><div class="fl">Relaciones en el Ambiente familiar</div><div class="fv">{{ r.get('is_good_family_environment') or '—' }}</div></div>
+      <div class="f3"><div class="fl">Descripción</div><div class="fv">{{ r.get('family_environment_description') or '—' }}</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Vida Comunitaria -->
+<div class="section">
+  <div class="section-title">Vida Comunitaria y Tiempo Libre</div>
+  <div class="fields">
+    <div class="row">
+      <div class="f"><div class="fl">¿Puede vivir en comunidad?</div><div class="fv">{{ r.get('can_live_in_community') or '—' }}</div></div>
+      {% if r.get('can_live_in_community') == 'si' %}
+      <div class="f2"><div class="fl">¿Por qué?</div><div class="fv">{{ r.get('why_can_live_in_community') or '—' }}</div></div>
+      {% endif %}
+      <div class="f"><div class="fl">¿Grupos comunitarios?</div><div class="fv">{{ r.get('has_participated_in_community_groups') or '—' }}</div></div>
+      {% if r.get('has_participated_in_community_groups') == 'si' %}
+      <div class="f2"><div class="fl">¿Cuáles?</div><div class="fv">{{ r.get('why_has_participated_in_community_groups') or '—' }}</div></div>
+      {% endif %}
+    </div>
+    <div class="row">
+      <div class="f"><div class="fl">Aspecto económico</div><div class="fv">{{ r.get('economic_aspect') or '—' }}</div></div>
+      {% if r.get('spare_time_activities') %}
+      <div class="f3">
+        <div class="fl">Actividades de tiempo libre</div>
+        <div class="tags">
+          {% for act in r.get('spare_time_activities') %}<span class="tag">{{ act }}</span>{% endfor %}
+          {% if r.get('spare_time_activities_other') %}<span class="tag">{{ r.spare_time_activities_other }}</span>{% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Antecedentes Médicos -->
+<div class="section">
+  <div class="section-title">Antecedentes Médicos</div>
+  <div class="fields">
+    <div class="row">
+      <div class="f"><div class="fl">Presión sanguínea</div><div class="fv">{{ bm.get('blood_pressure') or '—' }}</div></div>
+      <div class="f"><div class="fl">Pulso</div><div class="fv">{{ bm.get('pulse') or '—' }}</div></div>
+      <div class="f"><div class="fl">Peso</div><div class="fv">{{ bm.get('weight') or '—' }}</div></div>
+      <div class="f"><div class="fl">Talla</div><div class="fv">{{ bm.get('height') or '—' }}</div></div>
+    </div>
+
+    {% if active_dx %}
+    <p class="sub-title">Diagnósticos</p>
+    <table>
+      <thead><tr><th>Condición</th><th>Años</th><th>Observaciones</th></tr></thead>
+      <tbody>
+        {% for d in active_dx %}
+        <tr>
+          <td>{{ d.get('condition') or '—' }}</td>
+          <td>{{ d.get('years') or '—' }}</td>
+          <td>{{ d.get('notes') or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if meds %}
+    <p class="sub-title">Medicamentos actuales</p>
+    <table>
+      <thead><tr><th>Medicamento</th><th>Dosis</th><th>Frecuencia</th><th>Tipo</th></tr></thead>
+      <tbody>
+        {% for m in meds %}
+        <tr>
+          <td>{{ m.get('name') or '—' }}</td>
+          <td>{{ m.get('dose') or '—' }}</td>
+          <td>{{ m.get('frequency') or '—' }}</td>
+          <td>{{ 'Recetado' if m.get('is_prescribed', true) else 'Automedicado' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if pathologies or habits %}
+    <div class="row" style="margin-top: 6px;">
+      {% if pathologies %}
+      <div class="f2">
+        <div class="fl">Patologías</div>
+        <div class="tags">{% for p in pathologies %}<span class="tag">{{ p }}</span>{% endfor %}{% if mb.get('pathologies_other') %}<span class="tag">{{ mb.pathologies_other }}</span>{% endif %}</div>
+      </div>
+      {% endif %}
+      {% if habits %}
+      <div class="f">
+        <div class="fl">Hábitos</div>
+        <div class="tags">{% for h in habits %}<span class="tag">{{ h }}</span>{% endfor %}{% if mb.get('habits_other') %}<span class="tag">{{ mb.habits_other }}</span>{% endif %}</div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="row" style="margin-top: 6px;">
+      <div class="f"><div class="fl">Alergias medicamentos</div><div class="fv">{{ mb.get('medicament_allergies') or '—' }}</div></div>
+      <div class="f"><div class="fl">Antecedentes quirúrgicos</div><div class="fv">{{ mb.get('surgical_history') or '—' }}</div></div>
+      <div class="f"><div class="fl">Actividad física</div><div class="fv">{{ mb.get('physical_activity') or '—' }}</div></div>
+      <div class="f"><div class="fl">Dieta especial</div><div class="fv">{{ mb.get('special_diet') or '—' }}</div></div>
+      <div class="f"><div class="fl">Atención médica (6m)</div><div class="fv">{{ mb.get('medical_attention_6_months') or '—' }}</div></div>
+    </div>
+
+    {% if lab_tests %}
+    <p class="sub-title">Exámenes de laboratorio</p>
+    <table>
+      <thead><tr><th>Examen</th><th>Resultado</th></tr></thead>
+      <tbody>
+        {% for lt in lab_tests %}
+        <tr>
+          <td>{{ lt.get('test') or '—' }}</td>
+          <td>{{ lt.get('result') or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if mb.get('gerontologist_name') or mb.get('gerontological_observations') %}
+    <div class="row" style="margin-top: 6px;">
+      <div class="f"><div class="fl">Gerontólogo/a</div><div class="fv">{{ mb.get('gerontologist_name') or '—' }}</div></div>
+      <div class="f3"><div class="fl">Observaciones gerontológicas</div><div class="fv">{{ mb.get('gerontological_observations') or '—' }}</div></div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Valoración Funcional -->
+<div class="section">
+  <div class="section-title">Valoración Funcional</div>
+  <div class="fields">
+    <div class="row">
+      <div class="f"><div class="fl">Movilidad</div><div class="fv">{{ fa.get('mobility') or '—' }}</div></div>
+      <div class="f"><div class="fl">Alimentación</div><div class="fv">{{ fa.get('feeding') or '—' }}</div></div>
+      <div class="f"><div class="fl">Higiene</div><div class="fv">{{ fa.get('hygiene') or '—' }}</div></div>
+      <div class="f"><div class="fl">Continencia</div><div class="fv">{{ fa.get('continence') or '—' }}</div></div>
+      <div class="f"><div class="fl">Estado cognitivo</div><div class="fv">{{ fa.get('cognitive_state') or '—' }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div><div class="sig-line">Firma del responsable</div></div>
+  <div>Generado el {{ now }}</div>
+</div>
+
+</body>
+</html>

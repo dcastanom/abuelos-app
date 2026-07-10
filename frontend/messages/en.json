@@ -1,0 +1,43 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "new": "New",
+    "back": "Back",
+    "download": "Download",
+    "confirm": "Confirm"
+  },
+  "auth": {
+    "login": "Sign in",
+    "logout": "Sign out",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?"
+  },
+  "nav": {
+    "dashboard": "Home",
+    "residents": "Residents",
+    "notes": "Progress Notes",
+    "contracts": "Contracts",
+    "users": "Users",
+    "settings": "Settings"
+  },
+  "residents": {
+    "title": "Gerontological Files",
+    "new": "New file",
+    "search": "Search resident..."
+  },
+  "notes": {
+    "title": "Nursing Progress Notes",
+    "new": "New note"
+  },
+  "contracts": {
+    "title": "Service Contract",
+    "download": "Download PDF"
+  }
+}

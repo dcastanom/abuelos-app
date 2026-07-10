@@ -1,0 +1,11 @@
+# Copy to C:\Users\<you>\.wslconfig on the target Celeron PC (create the file if
+# it doesn't exist), then run `wsl --shutdown` once from PowerShell/cmd for it
+# to take effect.
+#
+# Without this, WSL2 defaults to reserving up to 50% of host RAM (2GB on a 4GB
+# machine) for its VM even at idle. Capping it leaves headroom for Windows itself.
+
+[wsl2]
+memory=2GB
+processors=2
+swap=2GB

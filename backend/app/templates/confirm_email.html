@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0"
+               style="background:#ffffff;border:1px solid #E2E8F0;border-radius:8px;padding:40px;">
+          <tr>
+            <td>
+              <p style="margin:0 0 4px 0;font-size:13px;color:#64748B;text-transform:uppercase;letter-spacing:0.05em;">
+                Abuelos App
+              </p>
+              <h1 style="margin:0 0 24px 0;font-size:22px;font-weight:600;color:#0F172A;">
+                Confirme su registro
+              </h1>
+              <p style="margin:0 0 16px 0;font-size:15px;color:#334155;line-height:1.6;">
+                Ha registrado el centro <strong>{{ company_name }}</strong> en Abuelos App.
+                Haga clic en el botón para activar su cuenta.
+              </p>
+              <table cellpadding="0" cellspacing="0" style="margin:32px 0;">
+                <tr>
+                  <td style="background:#0D9488;border-radius:6px;">
+                    <a href="{{ confirmation_url }}"
+                       style="display:inline-block;padding:12px 28px;font-size:15px;
+                              font-weight:600;color:#ffffff;text-decoration:none;">
+                      Confirmar correo electrónico
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0;font-size:13px;color:#94A3B8;line-height:1.5;">
+                Si no realizó este registro, puede ignorar este mensaje.<br />
+                El enlace es válido por 7 días.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
