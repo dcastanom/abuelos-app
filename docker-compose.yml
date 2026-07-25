@@ -1,31 +1,18 @@
 services:
-  mongodb:
-    image: mongo:7
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-    environment:
-      MONGO_INITDB_DATABASE: abuelos
-
   backend:
     build: ./backend
     restart: unless-stopped
     ports:
       - "8000:8000"
-    depends_on:
-      - mongodb
     env_file:
       - .env
     environment:
-      MONGODB_URL: mongodb://mongodb:27017
-      MONGODB_DB: abuelos
+      DATABASE_URL: sqlite+aiosqlite:////app/data/abuelos.db
     volumes:
       - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
+      - ./backend/alembic.ini:/app/alembic.ini
       - ./backend/seed.py:/app/seed.py
+      - ./backend/data:/app/data
       - ./uploads:/app/uploads
-    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
-volumes:
-  mongodb_data:
+    command: sh -c "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"

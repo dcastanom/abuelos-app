@@ -35,7 +35,7 @@ Read these documents first when implementing any data model, form, or report to 
 
 - **Frontend:** Next.js 16 (App Router, Turbopack, TypeScript, Tailwind CSS v4) — `frontend/`
 - **Backend:** Python 3.12 + FastAPI, managed with `uv` — `backend/`
-- **Database:** MongoDB via Motor (async driver)
+- **Database:** SQLite via SQLAlchemy 2.x async ORM (`aiosqlite` driver) + Alembic migrations
 - **PDF generation:** WeasyPrint + Jinja2 (added in Phase 4)
 - **Auth:** JWT (access token 15 min, refresh token 7 days httpOnly cookie), built from scratch
 - **Deployment:** Docker Compose
@@ -54,12 +54,12 @@ docker compose up
 ```bash
 cd backend
 uv sync                                                # install deps
+uv run alembic upgrade head                            # create/update the SQLite schema
 uv run uvicorn app.main:app --reload --port 8000       # dev server
 uv run pytest                                          # tests
 uv run ruff check .                                    # lint
 uv run mypy app/                                       # type-check
 ```
-MongoDB can be started alone with `docker compose up mongodb`.
 
 ### Frontend only (local)
 ```bash
@@ -77,11 +77,13 @@ pnpm tsc --noEmit # type-check
 backend/app/
   api/v1/        ← route handlers (one file per resource)
   core/config.py ← Settings (pydantic-settings, reads .env)
-  db/mongodb.py  ← Motor client + get_db() FastAPI dependency
-  models/        ← MongoDB document shapes (plain dataclasses / TypedDicts)
+  db/session.py  ← async engine/session + get_db() FastAPI dependency
+  db/base.py     ← SQLAlchemy declarative Base (single import point for Alembic + all models)
+  models/        ← SQLAlchemy ORM models (nested resident sub-documents kept as JSON columns)
   schemas/       ← Pydantic request/response schemas
   services/      ← Business logic (called by route handlers)
   templates/     ← Jinja2 HTML templates for PDFs and emails
+backend/alembic/ ← migrations (`uv run alembic revision --autogenerate` / `upgrade head`)
 
 frontend/app/
   (public)/      ← login, register (no auth required)

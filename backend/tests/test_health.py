@@ -1,13 +1,4 @@
-import pytest
-from httpx import ASGITransport, AsyncClient
-
-from app.main import app
-
-
-@pytest.fixture
-async def client():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        yield ac
+from httpx import AsyncClient
 
 
 async def test_health_check(client: AsyncClient):
@@ -15,4 +6,4 @@ async def test_health_check(client: AsyncClient):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
-    assert "db" in data
+    assert data["db"] == "connected"

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.db.mongodb import get_db
+from app.db.session import get_db
 from app.schemas.auth import LoginRequest, RegisterCompanyRequest, TokenResponse
 from app.services import auth_service
 
@@ -12,7 +12,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/register-company", status_code=status.HTTP_201_CREATED)
 async def register_company(
     data: RegisterCompanyRequest,
-    db: AsyncIOMotorDatabase = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     try:
         return await auth_service.register_company(db, data)
@@ -21,7 +21,7 @@ async def register_company(
 
 
 @router.get("/confirm/{token}")
-async def confirm_email(token: str, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def confirm_email(token: str, db: AsyncSession = Depends(get_db)):
     try:
         return await auth_service.confirm_company(db, token)
     except ValueError as e:
@@ -32,7 +32,7 @@ async def confirm_email(token: str, db: AsyncIOMotorDatabase = Depends(get_db)):
 async def login(
     data: LoginRequest,
     response: Response,
-    db: AsyncIOMotorDatabase = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     try:
         result = await auth_service.login(db, data.email, data.password)
@@ -52,7 +52,7 @@ async def login(
 
 
 @router.post("/refresh")
-async def refresh(request: Request, db: AsyncIOMotorDatabase = Depends(get_db)):
+async def refresh(request: Request, db: AsyncSession = Depends(get_db)):
     token = request.cookies.get("refresh_token")
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Sin refresh token")

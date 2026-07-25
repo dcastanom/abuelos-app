@@ -8,20 +8,22 @@ If no active company exists it will create one (slug: "demo").
 """
 
 import asyncio
-import os
 import random
 import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from bson import ObjectId
-from dotenv import load_dotenv
-from motor.motor_asyncio import AsyncIOMotorClient
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
+from sqlalchemy import select  # noqa: E402
 
-MONGO_URL = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
-MONGO_DB = os.getenv("MONGODB_DB", "abuelos")
+from app.db.session import close_db, connect_db, get_session_factory  # noqa: E402
+from app.models.company import Company  # noqa: E402
+from app.models.nursing_note import NursingNote  # noqa: E402
+from app.models.resident import Resident  # noqa: E402
+from app.models.user import User  # noqa: E402
+
 BOGOTA = ZoneInfo("America/Bogota")
 
 RESIDENT_NAMES = [
@@ -62,112 +64,119 @@ def shift_for(dt: datetime) -> str:
 
 
 async def main() -> None:
-    client = AsyncIOMotorClient(MONGO_URL)
-    db = client[MONGO_DB]
+    await connect_db()
+    session_factory = get_session_factory()
 
-    # --- Company ---
-    company = await db["companies"].find_one({"is_active": True})
-    if not company:
-        company_id = ObjectId()
-        now = datetime.now(BOGOTA)
-        await db["companies"].insert_one(
-            {
-                "_id": company_id,
-                "name": "Centro Geriátrico Demo",
-                "legal_id": "900000001-1",
-                "slug": "demo",
-                "admin_email": "admin@demo.com",
-                "is_active": True,
-                "confirmation_token": None,
-                "created_at": now,
-            }
-        )
-        company = await db["companies"].find_one({"_id": company_id})
-        print(f"  Empresa creada: {company['name']} (slug: {company['slug']})")
-    else:
-        print(f"  Empresa existente: {company['name']} (slug: {company['slug']})")
-
-    company_id: ObjectId = company["_id"]
-
-    # --- Nurse user ---
-    nurse = await db["users"].find_one({"company_id": company_id, "role": "nurse"})
-    if not nurse:
-        nurse_id = ObjectId()
-        await db["users"].insert_one(
-            {
-                "_id": nurse_id,
-                "company_id": company_id,
-                "email": "enfermera@demo.com",
-                "password_hash": "$2b$12$placeholder",
-                "full_name": "María Enfermera Pérez",
-                "role": "nurse",
-                "is_active": True,
-                "created_at": datetime.now(BOGOTA),
-                "last_login": None,
-            }
-        )
-        nurse = await db["users"].find_one({"_id": nurse_id})
-        print(f"  Enfermera creada: {nurse['full_name']}")
-    else:
-        print(f"  Enfermera existente: {nurse['full_name']}")
-
-    nurse_id_str = str(nurse["_id"])
-    nurse_name: str = nurse["full_name"]
-
-    # --- Residents ---
-    resident_ids: list[ObjectId] = []
-    for name in RESIDENT_NAMES:
-        existing = await db["residents"].find_one(
-            {"company_id": company_id, "full_name": name}
-        )
-        if existing:
-            resident_ids.append(existing["_id"])
-            print(f"  Residente existente: {name}")
-        else:
-            rid = ObjectId()
-            await db["residents"].insert_one(
-                {
-                    "_id": rid,
-                    "company_id": company_id,
-                    "full_name": name,
-                    "photo_url": None,
-                    "created_at": datetime.now(BOGOTA),
-                }
+    async with session_factory() as db:
+        # --- Company ---
+        company = (
+            await db.execute(select(Company).where(Company.is_active.is_(True)))
+        ).scalars().first()
+        if not company:
+            company = Company(
+                name="Centro Geriátrico Demo",
+                legal_id="900000001-1",
+                slug="demo",
+                admin_email="admin@demo.com",
+                is_active=True,
+                confirmation_token=None,
+                created_at=datetime.now(BOGOTA),
             )
-            resident_ids.append(rid)
-            print(f"  Residente creado: {name}")
+            db.add(company)
+            await db.flush()
+            print(f"  Empresa creada: {company.name} (slug: {company.slug})")
+        else:
+            print(f"  Empresa existente: {company.name} (slug: {company.slug})")
 
-    # --- Nursing notes ---
-    notes_created = 0
-    base = datetime.now(BOGOTA)
-    for i in range(30):
-        dt = base - timedelta(days=i, hours=random.randint(0, 23), minutes=random.randint(0, 59))
-        resident_id = random.choice(resident_ids)
-        note_text = random.choice(NOTE_TEMPLATES)
+        company_id = company.id
 
-        existing = await db["nursing_notes"].find_one(
-            {"resident_id": resident_id, "date": dt}
-        )
-        if existing:
-            continue
+        # --- Nurse user ---
+        nurse = (
+            await db.execute(
+                select(User).where(User.company_id == company_id, User.role == "nurse")
+            )
+        ).scalars().first()
+        if not nurse:
+            nurse = User(
+                company_id=company_id,
+                email="enfermera@demo.com",
+                password_hash="$2b$12$placeholder",
+                full_name="María Enfermera Pérez",
+                role="nurse",
+                is_active=True,
+                created_at=datetime.now(BOGOTA),
+                last_login=None,
+            )
+            db.add(nurse)
+            await db.flush()
+            print(f"  Enfermera creada: {nurse.full_name}")
+        else:
+            print(f"  Enfermera existente: {nurse.full_name}")
 
-        await db["nursing_notes"].insert_one(
-            {
-                "_id": ObjectId(),
-                "resident_id": resident_id,
-                "company_id": company_id,
-                "date": dt,
-                "shift": shift_for(dt),
-                "notes": note_text,
-                "nurse_id": nurse_id_str,
-                "nurse_name": nurse_name,
-                "created_at": dt,
-            }
-        )
-        notes_created += 1
+        nurse_id_str = nurse.id
+        nurse_name: str = nurse.full_name
 
-    print(f"  {notes_created} evoluciones de enfermería creadas.")
-    client.close()
+        # --- Residents ---
+        resident_ids: list[str] = []
+        for name in RESIDENT_NAMES:
+            existing = (
+                await db.execute(
+                    select(Resident).where(
+                        Resident.company_id == company_id, Resident.full_name == name
+                    )
+                )
+            ).scalars().first()
+            if existing:
+                resident_ids.append(existing.id)
+                print(f"  Residente existente: {name}")
+            else:
+                resident = Resident(
+                    company_id=company_id,
+                    full_name=name,
+                    photo_url=None,
+                    created_at=datetime.now(BOGOTA),
+                )
+                db.add(resident)
+                await db.flush()
+                resident_ids.append(resident.id)
+                print(f"  Residente creado: {name}")
+
+        # --- Nursing notes ---
+        notes_created = 0
+        base = datetime.now(BOGOTA)
+        for i in range(30):
+            dt = base - timedelta(days=i, hours=random.randint(0, 23), minutes=random.randint(0, 59))
+            resident_id = random.choice(resident_ids)
+            note_text = random.choice(NOTE_TEMPLATES)
+
+            existing = (
+                await db.execute(
+                    select(NursingNote).where(
+                        NursingNote.resident_id == resident_id, NursingNote.date == dt
+                    )
+                )
+            ).scalars().first()
+            if existing:
+                continue
+
+            db.add(
+                NursingNote(
+                    resident_id=resident_id,
+                    company_id=company_id,
+                    date=dt,
+                    shift=shift_for(dt),
+                    notes=note_text,
+                    nurse_id=nurse_id_str,
+                    nurse_name=nurse_name,
+                    created_at=dt,
+                )
+            )
+            notes_created += 1
+
+        await db.commit()
+        print(f"  {notes_created} evoluciones de enfermería creadas.")
+
+    await close_db()
 
 
 if __name__ == "__main__":

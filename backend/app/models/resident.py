@@ -1,108 +1,86 @@
-from typing import Optional
-from typing import TypedDict
+import uuid
+from datetime import date, datetime
+
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy.ext.mutable import MutableDict, MutableList
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.types import JSON
+
+from app.db.base import Base
 
 
-class Guardian(TypedDict, total=False):
-    name: str
-    relationship: str
-    phone: str
+class Resident(Base):
+    __tablename__ = "residents"
+    __table_args__ = (
+        Index("ix_residents_company_id_full_name", "company_id", "full_name"),
+        Index(
+            "ux_residents_company_id_id_number",
+            "company_id",
+            "id_number",
+            unique=True,
+            sqlite_where=text("id_number IS NOT NULL"),
+        ),
+    )
 
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    company_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("companies.id"), nullable=False
+    )
 
-class Diagnosis(TypedDict, total=False):
-    condition: str
-    has_it: bool
-    years: Optional[int]
-    notes: Optional[str]
+    registration_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    admission_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    room_number: Mapped[str | None] = mapped_column(String, nullable=True)
+    full_name: Mapped[str] = mapped_column(String, nullable=False)
+    id_type: Mapped[str | None] = mapped_column(String, nullable=True)
+    id_number: Mapped[str | None] = mapped_column(String, nullable=True)
+    birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    birth_country: Mapped[str] = mapped_column(String, nullable=False, default="Colombia")
+    birth_place: Mapped[str | None] = mapped_column(String, nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    gender: Mapped[str | None] = mapped_column(String, nullable=True)
+    civil_status: Mapped[str | None] = mapped_column(String, nullable=True)
+    address: Mapped[str | None] = mapped_column(String, nullable=True)
+    phone: Mapped[str | None] = mapped_column(String, nullable=True)
+    education_level: Mapped[str | None] = mapped_column(String, nullable=True)
+    religion: Mapped[str | None] = mapped_column(String, nullable=True)
+    occupation: Mapped[str | None] = mapped_column(String, nullable=True)
+    social_security_system: Mapped[str | None] = mapped_column(String, nullable=True)
+    social_security_company: Mapped[str | None] = mapped_column(String, nullable=True)
+    social_security_company_phone: Mapped[str | None] = mapped_column(String, nullable=True)
+    has_funeral_service: Mapped[str | None] = mapped_column(String, nullable=True)
+    funeral_service_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    funeral_service_phone: Mapped[str | None] = mapped_column(String, nullable=True)
 
+    guardians: Mapped[list] = mapped_column(
+        MutableList.as_mutable(JSON), nullable=False, default=list
+    )
 
-class Medication(TypedDict, total=False):
-    name: str
-    dose: str
-    frequency: str
-    is_prescribed: bool
+    children_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    male_children_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    female_children_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    children_address: Mapped[str | None] = mapped_column(String, nullable=True)
+    children_phone: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_good_family_environment: Mapped[str | None] = mapped_column(String, nullable=True)
+    family_environment_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    can_live_in_community: Mapped[str | None] = mapped_column(String, nullable=True)
+    why_can_live_in_community: Mapped[str | None] = mapped_column(Text, nullable=True)
+    has_participated_in_community_groups: Mapped[str | None] = mapped_column(String, nullable=True)
+    why_has_participated_in_community_groups: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    spare_time_activities: Mapped[list] = mapped_column(
+        MutableList.as_mutable(JSON), nullable=False, default=list
+    )
+    spare_time_activities_other: Mapped[str | None] = mapped_column(String, nullable=True)
+    economic_aspect: Mapped[str | None] = mapped_column(String, nullable=True)
 
-class BasicMeasures(TypedDict, total=False):
-    blood_pressure: Optional[str]
-    pulse: Optional[str]
-    weight: Optional[str]
-    height: Optional[str]
+    medical_background: Mapped[dict | None] = mapped_column(
+        MutableDict.as_mutable(JSON), nullable=True
+    )
+    functional_assessment: Mapped[dict | None] = mapped_column(
+        MutableDict.as_mutable(JSON), nullable=True
+    )
 
-
-class LaboratoryTest(TypedDict, total=False):
-    test: str
-    result: Optional[str]
-
-
-class MedicalBackground(TypedDict, total=False):
-    basic_measures: Optional[BasicMeasures]
-    diagnoses: list
-    current_medications: list
-    pathologies: list
-    pathologies_other: Optional[str]
-    medicament_allergies: Optional[str]
-    surgical_history: Optional[str]
-    habits: list
-    habits_other: Optional[str]
-    physical_activity: Optional[str]
-    special_diet: Optional[str]
-    medical_attention_6_months: Optional[str]
-    laboratory_tests: list
-    gerontological_observations: Optional[str]
-    gerontologist_name: Optional[str]
-
-
-class FunctionalAssessment(TypedDict, total=False):
-    mobility: Optional[str]
-    feeding: Optional[str]
-    hygiene: Optional[str]
-    continence: Optional[str]
-    cognitive_state: Optional[str]
-
-
-class Resident(TypedDict, total=False):
-    company_id: object  # ObjectId
-    registration_date: object  # date
-    admission_reason: Optional[str]
-    room_number: Optional[str]
-    full_name: str
-    id_type: Optional[str]
-    id_number: Optional[str]
-    birth_date: object  # date
-    birth_country: str
-    birth_place: Optional[str]
-    photo_url: Optional[str]
-    gender: Optional[str]
-    civil_status: Optional[str]
-    address: Optional[str]
-    phone: Optional[str]
-    education_level: Optional[str]
-    religion: Optional[str]
-    occupation: Optional[str]
-    social_security_system: Optional[str]
-    social_security_company: Optional[str]
-    social_security_company_phone: Optional[str]
-    has_funeral_service: Optional[str]
-    funeral_service_name: Optional[str]
-    funeral_service_phone: Optional[str]
-    guardians: list  # list[Guardian]
-    children_number: Optional[int]
-    male_children_number: Optional[int]
-    female_children_number: Optional[int]
-    children_address: Optional[str]
-    children_phone: Optional[str]
-    is_good_family_environment: Optional[str]
-    family_environment_description: Optional[str]
-    can_live_in_community: Optional[str]
-    why_can_live_in_community: Optional[str]
-    has_participated_in_community_groups: Optional[str]
-    why_has_participated_in_community_groups: Optional[str]
-    spare_time_activities: list
-    spare_time_activities_other: Optional[str]
-    economic_aspect: Optional[str]
-    medical_background: Optional[MedicalBackground]
-    functional_assessment: Optional[FunctionalAssessment]
-    created_by: object  # ObjectId
-    updated_by: object  # ObjectId
-    created_at: object  # datetime
-    updated_at: object  # datetime
+    created_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    updated_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

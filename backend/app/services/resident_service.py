@@ -2,12 +2,14 @@ import asyncio
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import cast
 
-from bson import ObjectId
 from jinja2 import Environment, FileSystemLoader
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from sqlalchemy import CursorResult, delete, func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.utils import dates_to_datetimes
+from app.core.utils import escape_like
+from app.models.resident import Resident
 from app.schemas.resident import ResidentCreate, ResidentUpdate
 
 _TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
@@ -23,37 +25,41 @@ def _fmtdate(dt: object) -> str:
 
 
 async def list_residents(
-    db: AsyncIOMotorDatabase,
+    db: AsyncSession,
     company_id: str,
     search: str = "",
     page: int = 1,
     page_size: int = 20,
 ) -> dict:
-    query: dict = {"company_id": ObjectId(company_id)}
+    filters = [Resident.company_id == company_id]
     if search:
-        query["full_name"] = {"$regex": search, "$options": "i"}
+        pattern = f"%{escape_like(search.lower())}%"
+        filters.append(func.py_lower(Resident.full_name).like(pattern, escape="\\"))
 
-    total = await db["residents"].count_documents(query)
-    cursor = (
-        db["residents"]
-        .find(query, {"full_name": 1, "photo_url": 1, "id_number": 1, "registration_date": 1, "room_number": 1})
-        .sort("full_name", 1)
-        .skip((page - 1) * page_size)
+    total = (
+        await db.execute(select(func.count()).select_from(Resident).where(*filters))
+    ).scalar_one()
+
+    result = await db.execute(
+        select(Resident)
+        .where(*filters)
+        .order_by(Resident.full_name)
+        .offset((page - 1) * page_size)
         .limit(page_size)
     )
-    docs = await cursor.to_list(page_size)
+    residents = result.scalars().all()
 
     return {
         "items": [
             {
-                "id": str(r["_id"]),
-                "full_name": r["full_name"],
-                "photo_url": r.get("photo_url"),
-                "id_number": r.get("id_number"),
-                "registration_date": r.get("registration_date"),
-                "room_number": r.get("room_number"),
+                "id": r.id,
+                "full_name": r.full_name,
+                "photo_url": r.photo_url,
+                "id_number": r.id_number,
+                "registration_date": r.registration_date,
+                "room_number": r.room_number,
             }
-            for r in docs
+            for r in residents
         ],
         "total": total,
         "page": page,
@@ -62,87 +68,83 @@ async def list_residents(
 
 
 async def create_resident(
-    db: AsyncIOMotorDatabase,
+    db: AsyncSession,
     company_id: str,
     data: ResidentCreate,
     created_by: str,
 ) -> str:
-    doc = dates_to_datetimes(data.model_dump())
-    doc["company_id"] = ObjectId(company_id)
-    doc["photo_url"] = None
-    doc["created_by"] = ObjectId(created_by)
-    doc["created_at"] = datetime.now(timezone.utc)
-    doc["updated_by"] = None
-    doc["updated_at"] = None
-    result = await db["residents"].insert_one(doc)
-    return str(result.inserted_id)
+    resident = Resident(
+        **data.model_dump(),
+        company_id=company_id,
+        photo_url=None,
+        created_by=created_by,
+        created_at=datetime.now(timezone.utc),
+        updated_by=None,
+        updated_at=None,
+    )
+    db.add(resident)
+    await db.commit()
+    return resident.id
 
 
 async def get_resident(
-    db: AsyncIOMotorDatabase,
+    db: AsyncSession,
     company_id: str,
     resident_id: str,
 ) -> dict | None:
-    try:
-        oid = ObjectId(resident_id)
-    except Exception:
-        return None
-
-    doc = await db["residents"].find_one(
-        {"_id": oid, "company_id": ObjectId(company_id)}
+    result = await db.execute(
+        select(Resident).where(Resident.id == resident_id, Resident.company_id == company_id)
     )
-    if doc is None:
+    resident = result.scalar_one_or_none()
+    if resident is None:
         return None
 
-    doc["id"] = str(doc["_id"])
-    doc["registration_id"] = str(doc["_id"])
-    doc["company_id"] = str(doc["company_id"])
-    doc["created_by"] = str(doc["created_by"]) if doc.get("created_by") else None
-    doc["updated_by"] = str(doc["updated_by"]) if doc.get("updated_by") else None
+    doc = {c.name: getattr(resident, c.name) for c in Resident.__table__.columns}
+    doc["registration_id"] = resident.id
     return doc
 
 
 async def update_resident(
-    db: AsyncIOMotorDatabase,
+    db: AsyncSession,
     company_id: str,
     resident_id: str,
     data: ResidentUpdate,
     updated_by: str,
 ) -> bool:
-    try:
-        oid = ObjectId(resident_id)
-    except Exception:
+    result = await db.execute(
+        select(Resident).where(Resident.id == resident_id, Resident.company_id == company_id)
+    )
+    resident = result.scalar_one_or_none()
+    if resident is None:
         return False
 
-    updates = dates_to_datetimes(data.model_dump(exclude_none=True, exclude_unset=True))
-    updates["updated_by"] = ObjectId(updated_by)
-    updates["updated_at"] = datetime.now(timezone.utc)
+    updates = data.model_dump(exclude_none=True, exclude_unset=True)
+    for key, value in updates.items():
+        setattr(resident, key, value)
+    resident.updated_by = updated_by
+    resident.updated_at = datetime.now(timezone.utc)
 
-    result = await db["residents"].update_one(
-        {"_id": oid, "company_id": ObjectId(company_id)},
-        {"$set": updates},
-    )
-    return result.matched_count > 0
+    await db.commit()
+    return True
 
 
 async def delete_resident(
-    db: AsyncIOMotorDatabase,
+    db: AsyncSession,
     company_id: str,
     resident_id: str,
 ) -> bool:
-    try:
-        oid = ObjectId(resident_id)
-    except Exception:
-        return False
-
-    result = await db["residents"].delete_one(
-        {"_id": oid, "company_id": ObjectId(company_id)}
+    result = cast(
+        CursorResult,
+        await db.execute(
+            delete(Resident).where(Resident.id == resident_id, Resident.company_id == company_id)
+        ),
     )
-    return result.deleted_count > 0
+    await db.commit()
+    return result.rowcount > 0
 
 
 async def save_photo(
-    db: AsyncIOMotorDatabase,
+    db: AsyncSession,
     company_id: str,
     resident_id: str,
     original_filename: str,
@@ -156,15 +158,17 @@ async def save_photo(
     (upload_dir / safe_name).write_bytes(contents)
 
     photo_url = f"/uploads/{company_id}/residents/{resident_id}/{safe_name}"
-    await db["residents"].update_one(
-        {"_id": ObjectId(resident_id), "company_id": ObjectId(company_id)},
-        {"$set": {"photo_url": photo_url}},
+    await db.execute(
+        update(Resident)
+        .where(Resident.id == resident_id, Resident.company_id == company_id)
+        .values(photo_url=photo_url)
     )
+    await db.commit()
     return photo_url
 
 
 async def generate_resident_pdf(
-    db: AsyncIOMotorDatabase,
+    db: AsyncSession,
     company_id: str,
     resident_id: str,
 ) -> bytes | None:
@@ -182,15 +186,4 @@ async def generate_resident_pdf(
 
     return await asyncio.to_thread(
         lambda: weasyprint.HTML(string=html_str, base_url=".").write_pdf()
-    )
-
-
-async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
-    await db["residents"].create_index([("company_id", 1), ("full_name", 1)])
-    # Unique only when id_number is actually set — partialFilterExpression
-    # excludes null/missing values that sparse would still index in a compound key
-    await db["residents"].create_index(
-        [("company_id", 1), ("id_number", 1)],
-        unique=True,
-        partialFilterExpression={"id_number": {"$type": "string"}},
     )

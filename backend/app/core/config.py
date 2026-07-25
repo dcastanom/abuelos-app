@@ -3,8 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     APP_NAME: str = "abuelos-app"
-    MONGODB_URL: str = "mongodb://localhost:27017"
-    MONGODB_DB: str = "abuelos"
+    DATABASE_URL: str = "sqlite+aiosqlite:///./data/abuelos.db"
     JWT_SECRET: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15

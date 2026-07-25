@@ -7,15 +7,12 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import router as v1_router
 from app.core.config import settings
-from app.db.mongodb import close_db, connect_db, get_db
-from app.services import resident_service
+from app.db.session import close_db, connect_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_db()
-    db = get_db()
-    await resident_service.ensure_indexes(db)
     yield
     await close_db()
 

@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
-from motor.motor_asyncio import AsyncIOMotorDatabase
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_current_user, require_role
-from app.db.mongodb import get_db
+from app.db.session import get_db
 from app.schemas.resident import (
     ResidentCreate,
     ResidentListResponse,
@@ -24,7 +24,7 @@ async def list_residents(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     return await resident_service.list_residents(
         db, current_user["company_id"], search, page, page_size
@@ -35,7 +35,7 @@ async def list_residents(
 async def create_resident(
     data: ResidentCreate,
     current_user: dict = Depends(require_role("admin", "doctor", "nurse")),
-    db: AsyncIOMotorDatabase = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     resident_id = await resident_service.create_resident(
         db, current_user["company_id"], data, current_user["_id"]
@@ -50,7 +50,7 @@ async def create_resident(
 async def get_resident(
     resident_id: str,
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     doc = await resident_service.get_resident(db, current_user["company_id"], resident_id)
     if doc is None:
@@ -63,7 +63,7 @@ async def update_resident(
     resident_id: str,
     data: ResidentUpdate,
     current_user: dict = Depends(require_role("admin", "doctor", "nurse")),
-    db: AsyncIOMotorDatabase = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     found = await resident_service.update_resident(
         db, current_user["company_id"], resident_id, data, current_user["_id"]
@@ -78,7 +78,7 @@ async def update_resident(
 async def delete_resident(
     resident_id: str,
     current_user: dict = Depends(require_role("admin")),
-    db: AsyncIOMotorDatabase = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     deleted = await resident_service.delete_resident(db, current_user["company_id"], resident_id)
     if not deleted:
@@ -89,7 +89,7 @@ async def delete_resident(
 async def export_resident_pdf(
     resident_id: str,
     current_user: dict = Depends(get_current_user),
-    db: AsyncIOMotorDatabase = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     pdf = await resident_service.generate_resident_pdf(db, current_user["company_id"], resident_id)
     if pdf is None:
@@ -106,7 +106,7 @@ async def upload_photo(
     resident_id: str,
     file: UploadFile = File(...),
     current_user: dict = Depends(require_role("admin", "doctor", "nurse")),
-    db: AsyncIOMotorDatabase = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     if file.content_type not in _ALLOWED_IMAGE_TYPES:
         raise HTTPException(
