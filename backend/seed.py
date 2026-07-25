@@ -415,6 +415,7 @@ async def seed() -> None:
                 date=note_dt(2025, 6, 18, 8), shift=shift(8),
                 notes="Paciente se levantó con rigidez marcada en extremidades superiores. Se administró levodopa a las 7:00 a.m. Tolera bien el desayuno con ayuda. Se realizó cambio de posición cada 2 horas para prevenir úlceras. Sin episodios de caída.",
                 nurse_id=nurse_id, nurse_name="Carmen Lucía Pérez",
+                author_role="nurse",
                 created_at=note_dt(2025, 6, 18, 8),
             ),
             NursingNote(
@@ -422,6 +423,7 @@ async def seed() -> None:
                 date=note_dt(2025, 6, 18, 15), shift=shift(15),
                 notes="Tarde tranquila. Participó en sesión de musicoterapia con respuesta emocional positiva. Tensión arterial 128/78 mmHg. Ingesta de líquidos adecuada. Se notifica a familia el buen estado general.",
                 nurse_id=nurse_id, nurse_name="Carmen Lucía Pérez",
+                author_role="nurse",
                 created_at=note_dt(2025, 6, 18, 15),
             ),
             NursingNote(
@@ -429,6 +431,7 @@ async def seed() -> None:
                 date=note_dt(2025, 6, 19, 9), shift=shift(9),
                 notes="Noche sin novedades. Paciente durmió 6 horas continuas. Higiene completa realizada. Temblor moderado en mano derecha. Se ajusta postura en silla de ruedas. Apetito conservado.",
                 nurse_id=nurse_id, nurse_name="Carmen Lucía Pérez",
+                author_role="nurse",
                 created_at=note_dt(2025, 6, 19, 9),
             ),
             # Carlos Alberto Rodríguez
@@ -437,6 +440,7 @@ async def seed() -> None:
                 date=note_dt(2025, 6, 17, 22), shift=shift(22),
                 notes="Episodio de deambulación nocturna a las 11:30 pm. Paciente estaba confundido, buscaba 'ir a trabajar'. Se reorientó con calma, se acompañó a la habitación y se administró dosis nocturna de donepezilo. Glicemia nocturna: 138 mg/dL. Se administra insulina según esquema.",
                 nurse_id=nurse_id, nurse_name="Carmen Lucía Pérez",
+                author_role="nurse",
                 created_at=note_dt(2025, 6, 17, 22),
             ),
             NursingNote(
@@ -444,6 +448,7 @@ async def seed() -> None:
                 date=note_dt(2025, 6, 18, 7), shift=shift(7),
                 notes="Paciente descansó tras episodio nocturno. Glicemia en ayunas: 142 mg/dL. Tensión arterial 148/92 mmHg — se notifica a médico tratante. Desayuno completo. Reconoce a enfermera pero no recuerda el año actual. Estado de ánimo estable.",
                 nurse_id=nurse_id, nurse_name="Carmen Lucía Pérez",
+                author_role="nurse",
                 created_at=note_dt(2025, 6, 18, 7),
             ),
             NursingNote(
@@ -451,6 +456,7 @@ async def seed() -> None:
                 date=note_dt(2025, 6, 19, 14), shift=shift(14),
                 notes="Visita de hija Sofía Rodríguez. Paciente muy animado durante la visita. Realizó caminata corta en jardín con supervisión. Glicemia postprandial: 165 mg/dL. Sin caídas. Se informa a hija sobre ajuste de medicación prescrito por médico.",
                 nurse_id=nurse_id, nurse_name="Carmen Lucía Pérez",
+                author_role="nurse",
                 created_at=note_dt(2025, 6, 19, 14),
             ),
             # Ana Lucía Martínez
@@ -459,6 +465,7 @@ async def seed() -> None:
                 date=note_dt(2025, 6, 18, 9), shift=shift(9),
                 notes="Sesión de fisioterapia completada satisfactoriamente. Paciente logró dar 15 pasos con andador sin apoyo lateral. Dolor EVA 3/10 post-ejercicio. Se administra tramadol según prescripción. Muy buena actitud y motivación. Visita de esposo en tarde.",
                 nurse_id=nurse_id, nurse_name="Carmen Lucía Pérez",
+                author_role="nurse",
                 created_at=note_dt(2025, 6, 18, 9),
             ),
             NursingNote(
@@ -466,6 +473,7 @@ async def seed() -> None:
                 date=note_dt(2025, 6, 19, 10), shift=shift(10),
                 notes="Paciente independiente en alimentación e higiene personal en cama. Herida quirúrgica en excelente estado, sin signos de infección. Tensión arterial 118/72 mmHg. Realizó ejercicios de movilidad activa de miembro inferior derecho según indicación de fisioterapeuta.",
                 nurse_id=nurse_id, nurse_name="Carmen Lucía Pérez",
+                author_role="nurse",
                 created_at=note_dt(2025, 6, 19, 10),
             ),
         ]

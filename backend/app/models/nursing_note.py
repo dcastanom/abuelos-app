@@ -22,4 +22,5 @@ class NursingNote(Base):
     notes: Mapped[str] = mapped_column(Text, nullable=False)
     nurse_id: Mapped[str] = mapped_column(String(36), nullable=False)
     nurse_name: Mapped[str] = mapped_column(String, nullable=False)
+    author_role: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

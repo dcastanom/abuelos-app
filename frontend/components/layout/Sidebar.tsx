@@ -16,7 +16,7 @@ const navItems = [
   { href: "dashboard", icon: LayoutDashboard, label: "Inicio" },
   { href: "residents", icon: Users, label: "Fichas" },
   { href: "notes", icon: ClipboardList, label: "Evoluciones" },
-  { href: "contracts", icon: FileText, label: "Contratos" },
+  // { href: "contracts", icon: FileText, label: "Contratos" },
 ];
 
 const adminItems = [{ href: "users", icon: UserCog, label: "Usuarios" }];
@@ -52,7 +52,7 @@ export function Sidebar({ companySlug }: { companySlug: string }) {
             </Link>
           ))}
 
-          {user?.role === "admin" && (
+          {/* {user?.role === "admin" && (
             <>
               <p className="mt-4 mb-1 px-3 text-[11px] font-medium text-slate-500 uppercase tracking-widest">
                 Administración
@@ -72,7 +72,7 @@ export function Sidebar({ companySlug }: { companySlug: string }) {
                 </Link>
               ))}
             </>
-          )}
+          )} */}
         </div>
       </nav>
 

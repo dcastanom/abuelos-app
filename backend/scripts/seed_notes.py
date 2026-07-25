@@ -168,6 +168,7 @@ async def main() -> None:
                     notes=note_text,
                     nurse_id=nurse_id_str,
                     nurse_name=nurse_name,
+                    author_role="nurse",
                     created_at=dt,
                 )
             )

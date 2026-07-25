@@ -28,6 +28,7 @@ async def list_notes(
         db,
         resident_id,
         current_user["company_id"],
+        current_user["role"],
         page,
         page_size,
         date_from,
@@ -51,6 +52,7 @@ async def create_note(
         data,
         current_user["_id"],
         current_user["full_name"],
+        current_user["role"],
     )
 
 
@@ -62,7 +64,7 @@ async def get_note(
     db: AsyncSession = Depends(get_db),
 ):
     note = await nursing_note_service.get_note(
-        db, resident_id, note_id, current_user["company_id"]
+        db, resident_id, note_id, current_user["company_id"], current_user["role"]
     )
     if not note:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nota no encontrada")

@@ -61,9 +61,42 @@ In an elevated PowerShell on the Celeron PC:
 powershell -ExecutionPolicy Bypass -File setup-windows.ps1
 ```
 
+This requires `winget` (App Installer) to be present. It ships by default on
+current Windows 10/11 images, but is missing on some older OEM builds that
+predate Store updates, and is explicitly unsupported on Windows 10 LTSC.
+Check with `winget --version` before running this script — if it's missing,
+install "App Installer" from the Microsoft Store first, or fall back to
+downloading Python/Node/MSYS2/NSSM directly from their sites.
+
 This installs Python, Node.js, `uv`, `pnpm` (via corepack), MSYS2 + Pango
-(WeasyPrint's PDF-rendering dependency), and NSSM. Close and reopen
-PowerShell afterward so PATH updates take effect.
+(WeasyPrint's PDF-rendering dependency), and NSSM. It also sets two things
+at **System** (Machine) scope, not just the current user's, since the NSSM
+services registered in step 5 run outside any interactive shell and only
+read the Machine environment:
+- MSYS2's `ucrt64\bin` — where Pango's DLLs actually live — added to `PATH`.
+- `WEASYPRINT_DLL_DIRECTORIES=C:\msys64\ucrt64\bin` — required in addition
+  to `PATH`; see Troubleshooting below for why PATH alone isn't enough.
+
+**Reboot the machine after this step**, not just close/reopen PowerShell.
+Windows services are spawned by the SCM (`services.exe`), which reads
+Machine-scope environment variables at boot, not on demand — an interactive
+shell restart makes the new PATH/env var visible to *you*, but NSSM-managed
+services in step 5 won't see them until the machine actually restarts. Skip
+this and PDF export can fail inside the service while working fine when you
+test manually with `uv run` in a fresh shell, which is a confusing way to
+rediscover the same bug.
+
+Once `backend/` is copied in and `uv sync` has run (step 4), it's worth
+confirming this worked before going further:
+
+```powershell
+cd C:\abuelos-app\backend
+uv run python -c "import weasyprint; print('ok')"
+```
+
+If this prints `ok`, PDF export will work. If it instead raises `OSError:
+cannot load library '...libgobject-2.0-0.dll': error 0x7e`, see
+Troubleshooting below.
 
 ### 2. Copy the project onto the machine
 
@@ -182,3 +215,44 @@ boot. No Task Scheduler step is needed.
 - **What's no longer needed, compared to the old MongoDB Atlas setup:**
   cluster creation, database user management, IP allow-listing, and the
   `mongodb+srv://...` connection string — none of that exists anymore.
+
+## Troubleshooting
+
+### PDF export fails with `OSError: cannot load library '...libgobject-2.0-0.dll': error 0x7e`
+
+WeasyPrint (used for PDF generation) needs Pango's native DLLs, installed by
+`setup-windows.ps1` via MSYS2 into `C:\msys64\ucrt64\bin`. `error 0x7e` means
+Windows found `libgobject-2.0-0.dll` itself but couldn't load one of *its*
+dependencies (`libglib-2.0-0.dll`, `libintl-8.dll`, `libiconv-2.dll`, etc.,
+also in `ucrt64\bin`).
+
+The cause is **not missing PATH** — WeasyPrint's `ffi.py` loads its native
+libraries with the `LOAD_LIBRARY_SEARCH_DEFAULT_DIRS` flag, which ignores
+`PATH` entirely for resolving a DLL's dependencies. It only searches
+directories registered via `os.add_dll_directory()`, and WeasyPrint hardcodes
+that call for `C:\msys64\mingw64\bin` (the classic MinGW64 environment) —
+not `ucrt64\bin`, which is what our setup script actually installs Pango
+into (the UCRT64 package). So the directory being on `PATH` gets the *main*
+DLL's path resolved, but its dependencies still fail to load.
+
+A current `setup-windows.ps1` already sets `WEASYPRINT_DLL_DIRECTORIES` at
+System scope for you, so this shouldn't come up on a fresh install — this
+is mainly for a machine bootstrapped with an older copy of the script.
+
+Fix: set the `WEASYPRINT_DLL_DIRECTORIES` environment variable to
+`C:\msys64\ucrt64\bin` — this tells `ffi.py` to call
+`os.add_dll_directory()` on our path instead of its hardcoded default.
+
+1. Confirm the DLLs exist: `C:\msys64\ucrt64\bin\libgobject-2.0-0.dll`. If
+   missing, rerun the Pango install line from `setup-windows.ps1`.
+2. Add a **System** environment variable (System Properties → Environment
+   Variables → **System variables** → New): name
+   `WEASYPRINT_DLL_DIRECTORIES`, value `C:\msys64\ucrt64\bin` — System
+   scope, not User, so the NSSM-managed `abuelos-backend` service picks it
+   up too, not just an interactive shell.
+3. **Reboot the machine.** The SCM only reads Machine-scope environment
+   variables at boot, so closing/reopening PowerShell is not enough to make
+   a live NSSM service see this — only an interactive shell picks it up
+   that way. After rebooting, confirm with `Restart-Service abuelos-backend`.
+4. Verify: `cd C:\abuelos-app\backend; uv run python -c "import weasyprint"`
+   should succeed with no output/error.

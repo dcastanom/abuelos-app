@@ -1,5 +1,7 @@
 from httpx import AsyncClient
 
+from tests.helpers import create_user_and_login
+
 
 async def _create_resident(client: AsyncClient, auth_headers: dict, full_name: str = "Residente Prueba") -> str:
     resp = await client.post("/api/v1/residents", json={"full_name": full_name}, headers=auth_headers)
@@ -72,3 +74,46 @@ async def test_notes_are_scoped_to_resident(client: AsyncClient, auth_headers: d
     data = resp.json()
     assert data["total"] == 1
     assert data["items"][0]["notes"] == "Nota A"
+
+
+async def test_admin_notes_hidden_from_nurses_and_doctors(client: AsyncClient, auth_headers: dict):
+    resident_id = await _create_resident(client, auth_headers)
+
+    admin_note_resp = await client.post(
+        f"/api/v1/residents/{resident_id}/notes",
+        json={"notes": "Nota confidencial de administración."},
+        headers=auth_headers,
+    )
+    assert admin_note_resp.status_code == 201
+    admin_note_id = admin_note_resp.json()["id"]
+
+    nurse_token = await create_user_and_login(
+        client, "nurse", "enfermera@prueba.com", "Enfermera Prueba"
+    )
+    nurse_headers = {"Authorization": f"Bearer {nurse_token}"}
+
+    doctor_token = await create_user_and_login(
+        client, "doctor", "doctor@prueba.com", "Doctor Prueba"
+    )
+    doctor_headers = {"Authorization": f"Bearer {doctor_token}"}
+
+    nurse_note_resp = await client.post(
+        f"/api/v1/residents/{resident_id}/notes",
+        json={"notes": "Nota de enfermería, visible para todos los roles."},
+        headers=nurse_headers,
+    )
+    assert nurse_note_resp.status_code == 201
+
+    for headers in (nurse_headers, doctor_headers):
+        list_resp = await client.get(f"/api/v1/residents/{resident_id}/notes", headers=headers)
+        data = list_resp.json()
+        assert data["total"] == 1
+        assert data["items"][0]["notes"] == "Nota de enfermería, visible para todos los roles."
+
+        get_resp = await client.get(
+            f"/api/v1/residents/{resident_id}/notes/{admin_note_id}", headers=headers
+        )
+        assert get_resp.status_code == 404
+
+    admin_list_resp = await client.get(f"/api/v1/residents/{resident_id}/notes", headers=auth_headers)
+    assert admin_list_resp.json()["total"] == 2

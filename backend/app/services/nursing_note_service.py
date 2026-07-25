@@ -39,6 +39,13 @@ def _fmt(note: NursingNote, resident_name: Optional[str], company_name: Optional
     }
 
 
+def _visible_to(requester_role: str) -> list:
+    """Admin-authored notes are only visible to admin users."""
+    if requester_role == "admin":
+        return []
+    return [NursingNote.author_role != "admin"]
+
+
 async def _fetch_names(
     db: AsyncSession, resident_id: str, company_id: str
 ) -> tuple[Optional[str], Optional[str]]:
@@ -61,6 +68,7 @@ async def create_note(
     data: NoteCreate,
     nurse_id: str,
     nurse_name: str,
+    author_role: str,
 ) -> dict:
     now = datetime.now(tz=_BOGOTA)
     note = NursingNote(
@@ -71,6 +79,7 @@ async def create_note(
         notes=data.notes.strip(),
         nurse_id=nurse_id,
         nurse_name=nurse_name,
+        author_role=author_role,
         created_at=now,
     )
     db.add(note)
@@ -83,6 +92,7 @@ async def list_notes(
     db: AsyncSession,
     resident_id: str,
     company_id: str,
+    requester_role: str,
     page: int = 1,
     page_size: int = 20,
     date_from: Optional[datetime] = None,
@@ -93,6 +103,7 @@ async def list_notes(
     filters = [
         NursingNote.resident_id == resident_id,
         NursingNote.company_id == company_id,
+        *_visible_to(requester_role),
     ]
     if date_from:
         filters.append(NursingNote.date >= date_from)
@@ -132,12 +143,14 @@ async def get_note(
     resident_id: str,
     note_id: str,
     company_id: str,
+    requester_role: str,
 ) -> Optional[dict]:
     result = await db.execute(
         select(NursingNote).where(
             NursingNote.id == note_id,
             NursingNote.resident_id == resident_id,
             NursingNote.company_id == company_id,
+            *_visible_to(requester_role),
         )
     )
     note = result.scalar_one_or_none()
